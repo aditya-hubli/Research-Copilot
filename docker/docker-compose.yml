@@ -1,0 +1,85 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: research-copilot-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: INFO
+      LLM_PROVIDER: ${LLM_PROVIDER:-huggingface}
+      LLM_MODEL: ${LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      REQUIRE_API_KEY: ${REQUIRE_API_KEY:-false}
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-}
+      REQUIRE_GRAPH_REVIEW: ${REQUIRE_GRAPH_REVIEW:-false}
+      QUEUE_MAX_SIZE: ${QUEUE_MAX_SIZE:-200}
+      QUEUE_WORKER_COUNT: ${QUEUE_WORKER_COUNT:-2}
+      ANALYSIS_CACHE_TTL_SECONDS: ${ANALYSIS_CACHE_TTL_SECONDS:-21600}
+      ANALYSIS_CACHE_MAX_ENTRIES: ${ANALYSIS_CACHE_MAX_ENTRIES:-4000}
+      EMBEDDING_CACHE_TTL_SECONDS: ${EMBEDDING_CACHE_TTL_SECONDS:-86400}
+      EMBEDDING_CACHE_MAX_ENTRIES: ${EMBEDDING_CACHE_MAX_ENTRIES:-10000}
+      METADATA_CACHE_TTL_SECONDS: ${METADATA_CACHE_TTL_SECONDS:-21600}
+      METADATA_CACHE_MAX_ENTRIES: ${METADATA_CACHE_MAX_ENTRIES:-10000}
+      GRAPH_REVIEW_DATA_PATH: ${GRAPH_REVIEW_DATA_PATH:-backend/data/reviews/reviews.json}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_DB_PASSWORD:-researchcopilot}
+      CITATION_CRAWL_ENABLED: ${CITATION_CRAWL_ENABLED:-true}
+      CITATION_CRAWL_DEPTH: ${CITATION_CRAWL_DEPTH:-2}
+      CITATION_CRAWL_MAX_PAPERS: ${CITATION_CRAWL_MAX_PAPERS:-20}
+      CORS_ALLOW_ORIGINS: '["*"]'
+    volumes:
+      - backend_data:/app/backend/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json, urllib.request; data = json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)); raise SystemExit(0 if data.get('ready') else 1)"
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      neo4j:
+        condition: service_healthy
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: research-copilot-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_DB_PASSWORD:-researchcopilot}
+      NEO4J_dbms_security_auth__enabled: "true"
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "cypher-shell -u neo4j -p ${NEO4J_DB_PASSWORD:-researchcopilot} 'RETURN 1;' >/dev/null 2>&1 || exit 1"
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  backend_data:
+  neo4j_data:
+  neo4j_logs:

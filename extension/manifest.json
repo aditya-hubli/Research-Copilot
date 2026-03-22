@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Research Copilot",
+  "version": "1.0.0",
+  "description": "AI-powered research paper analysis with multi-agent RAG, knowledge graphs, and real-time insights.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "permissions": ["activeTab", "tabs", "storage", "sidePanel"],
+  "host_permissions": [
+    "https://arxiv.org/*",
+    "https://www.semanticscholar.org/*",
+    "https://openreview.net/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "action": {
+    "default_title": "Research Copilot",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "32": "assets/icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://arxiv.org/*",
+        "https://www.semanticscholar.org/*",
+        "https://openreview.net/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  }
+}
